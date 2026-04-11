@@ -179,6 +179,15 @@ resource "yandex_storage_bucket" "storage_bucket" {
     list        = false
     config_read = false
   }
+
+  server_side_encryption_configuration {
+    rule {
+      apply_server_side_encryption_by_default {
+        kms_master_key_id = yandex_kms_symmetric_key.key-a.id
+        sse_algorithm     = "aws:kms"
+      }
+    }
+  }
 }
 
 resource "yandex_storage_object" "picture" {
@@ -297,4 +306,32 @@ resource "yandex_lb_network_load_balancer" "load_balancer_web" {
       }
     }
   }
+}
+
+resource "yandex_kms_symmetric_key" "key-a" {
+  name              = "bucket-encryption-key"
+  default_algorithm = "AES_128"
+  rotation_period   = "8760h"
+}
+
+resource "yandex_resourcemanager_folder_iam_member" "kms_encrypter_decrypter" {
+  folder_id = var.yc_folder_id
+  role      = "kms.keys.encrypterDecrypter"
+  member    = "serviceAccount:ajeh9ls2rolcnuqag7is"
+}
+
+resource "yandex_storage_bucket" "static_website" {
+  bucket = "netologytestbucketcat.ru"
+
+  website {
+    index_document = "index.html"
+    error_document = "error.html"
+  }
+}
+
+resource "yandex_storage_object" "index" {
+  bucket       = yandex_storage_bucket.static_website.bucket
+  key          = "index.html"
+  source       = "./index.html"
+  content_type = "text/html"
 }
